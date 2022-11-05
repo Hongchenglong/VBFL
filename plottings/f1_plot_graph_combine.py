@@ -122,7 +122,7 @@ if PoS_3_vh_008_run1_accuracies:
 			plt.annotate(PoS_3_vh_008_run1_accuracies[accuracy_iter], xy=(accuracy_iter, PoS_3_vh_008_run1_accuracies[accuracy_iter]), size=12)
 
 
-plt.legend(loc='l', bbox_to_anchor=(0.32,0.7))
+plt.legend(loc='best', bbox_to_anchor=(0.32,0.7))
 plt.xlabel('Communication Round')
 plt.ylabel('Global Accuracy')
 plt.title('Comparison of Global Model Accuracy')

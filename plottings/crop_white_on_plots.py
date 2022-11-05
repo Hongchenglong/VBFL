@@ -1,10 +1,11 @@
 # https://www.programmersought.com/article/8966116355/
 # https://stackoverflow.com/questions/59758904/check-if-image-is-all-white-pixels-with-opencv
+# https://stackoverflow.com/questions/63334753/no-module-named-cv2-on-anaconda-3-8-3
 
 import cv2 as io
 import sys
 import numpy as np
-
+# python /Users/oeong/Public/src/python/federated_learning/VBFL/plottings/crop_white_on_plots.py /Users/oeong/Public/src/python/federated_learning/VBFL/plottings/f5_effectivesness_validation_mechanisms.png
 im = io.imread(sys.argv[1])
 
 def corp_margin(img):
@@ -38,5 +39,6 @@ def corp_margin(img):
 	return new_img
 
 img_re = corp_margin(im)
-io.imwrite(f"/Volumes/BOOTCAMP/AAAI_plots/cropped/{sys.argv[1].split('/')[-1]}",img_re)
+io.imwrite(f"./{sys.argv[1].split('/')[-1]}",img_re)
+# io.imwrite(f"/Volumes/BOOTCAMP/AAAI_plots/cropped/{sys.argv[1].split('/')[-1]}",img_re)
 # io.imshow(img_re)

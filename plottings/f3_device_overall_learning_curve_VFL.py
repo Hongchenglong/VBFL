@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import os
 import sys
-from adjustText import adjust_text
+# from adjustText import adjust_text
 
 
 log_folder = sys.argv[1]

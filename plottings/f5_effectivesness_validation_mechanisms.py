@@ -96,7 +96,7 @@ for draw_var_iter in range(len(draw_vars)):
 		alpha=0.2)          # Transparency of the fill
 	plt.plot(range(1,draw_comm_rounds+1), vars()[f'{draw_var}_draw']['mean'], color=colors[draw_var_iter], label=labels[draw_var_iter])
 
-plt.legend(loc='b')
+plt.legend(loc='best')
 plt.xlabel('Communication Round')
 plt.ylabel('Accuracy')
 plt.title('Global Model Accuracy Comparisons')
