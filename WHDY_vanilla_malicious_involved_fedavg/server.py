@@ -13,6 +13,7 @@ import sys
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description="FedAvg")
 parser.add_argument('-g', '--gpu', type=str, default='0', help='gpu id to use(e.g. 0,1,2,3)')
 parser.add_argument('-nc', '--num_of_clients', type=int, default=20, help='numer of the clients')
+# TODO: C fraction
 parser.add_argument('-cf', '--cfraction', type=float, default=1, help='C fraction, 0 means 1 client, 1 means total clients')
 parser.add_argument('-E', '--epoch', type=int, default=5, help='local train epoch')
 parser.add_argument('-B', '--batchsize', type=int, default=10, help='local train batch size')
@@ -20,6 +21,7 @@ parser.add_argument('-mn', '--model_name', type=str, default='mnist_cnn', help='
 parser.add_argument('-lr', "--learning_rate", type=float, default=0.01, help="learning rate, \
 					use value from origin paper as default")
 parser.add_argument('-ncomm', '--num_comm', type=int, default=100, help='number of communications')
+# IDD，独立同分布：在一组随机变量中，每个随机变量互相独立，且每个变量的概率分布都相同
 parser.add_argument('-iid', '--IID', type=int, default=0, help='the way to allocate data to clients')
 
 # Hang added
@@ -85,6 +87,7 @@ if __name__=="__main__":
 		sum_parameters = None
 		for client in clients_in_comm:
 			myClients.clients_set[client].reset_variance_of_noise()
+			# 客户端模型本地更新
 			local_parameters = myClients.clients_set[client].localUpdate(args['epoch'], args['batchsize'], loss_func, global_parameters, comm_round_folder, i)
 			if sum_parameters is None:
 				sum_parameters = local_parameters

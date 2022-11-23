@@ -11,7 +11,7 @@ log_folder = sys.argv[1]
 all_rounds_log_folders = sorted([f for f in os.listdir(log_folder) if f.startswith('comm')], key=lambda x: int(x.split('.')[0].split('_')[-1]))
 
 draw_comm_rounds = len(all_rounds_log_folders)
-
+# TODO: 什么意思？一下100，一下10
 draw_comm_rounds = 10
 draw_device_idx = 'client_1'
 
@@ -22,9 +22,9 @@ draw_accuracies = []
 
 # get local and global model's learning curve
 for sub_log_folder_name in all_rounds_log_folders[:draw_comm_rounds]:
-	sub_log_folder_path = f"{log_folder}/{sub_log_folder_name}"
+	sub_log_folder_path = f"{log_folder}/{sub_log_folder_name}"  # nm3/comm_1
 	# record local accuracy
-	file = open(f"{sub_log_folder_path}/{draw_device_idx}_local_{sub_log_folder_name}.txt","r")
+	file = open(f"{sub_log_folder_path}/{draw_device_idx}_local_{sub_log_folder_name}.txt","r")  # nm3/comm_1/client1_local_comm1.txt
 	file_whole_text = file.read()
 	local_accuracies_e1 = round(float(file_whole_text.split("\n")[0].split(' ')[-1]), 3)
 	local_accuracies_e5 = round(float(file_whole_text.split("\n")[4].split(' ')[-1]), 3)

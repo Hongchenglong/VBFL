@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from os import listdir
 import sys
 
-log_folder_b = sys.argv[1]
-log_folder_m = sys.argv[2]
+log_folder_b = sys.argv[1]  # benign_devices 良性设备
+log_folder_m = sys.argv[2]  # malicious_devices 恶意设备
 log_folder_PoS_3_vh_008_run1 = sys.argv[3]
 
 all_rounds_log_files_b = sorted([f for f in listdir(log_folder_b) if f.startswith('comm')], key=lambda x: int(x.split('.')[0].split('_')[-1]))
@@ -13,7 +13,7 @@ all_rounds_log_files_m = sorted([f for f in listdir(log_folder_m) if f.startswit
 all_rounds_PoS_3_vh_008_run1 = sorted([f for f in listdir(log_folder_PoS_3_vh_008_run1) if f.startswith('comm')], key=lambda x: int(x.split('.')[0].split('_')[-1]))
 
 draw_comm_rounds = len(all_rounds_log_files_b) if len(all_rounds_log_files_b) < len(all_rounds_log_files_m) else len(all_rounds_log_files_m)
-
+# TODO: 上一行代码刚赋值draw_comm_rounds，下一行又重新赋值？
 draw_comm_rounds = 100
 plt.figure(dpi=250)
 
@@ -91,15 +91,16 @@ plt.plot(range(draw_comm_rounds), PoS_3_vh_008_run1_accuracies, label=r'VBFL 3 o
 plt.plot(range(draw_comm_rounds), m_device_accuracies_across_rounds, label=f'Vanilla FL {total_malicious_devices} out of {total_devices} malicious devices', color='blue')
 #plt.plot(range(draw_comm_rounds), a_device_accuracies_across_rounds, label=f'all {total_devices} benigh PoS')
 
+# 每隔20个下标，打上准确率的注释
 if b_device_accuracies_across_rounds:
 	annotating_points = 5
 	skipped_1 = False
-	for accuracy_iter in range(len(b_device_accuracies_across_rounds)):
-		if not accuracy_iter % (len(b_device_accuracies_across_rounds) // annotating_points):
-			if not skipped_1:
+	for accuracy_iter in range(len(b_device_accuracies_across_rounds)): 
+		if not accuracy_iter % (len(b_device_accuracies_across_rounds) // annotating_points):  # 100//5=20, 判断下标是否是20的倍数
+			if not skipped_1:  # 跳过第一个
 				skipped_1 = True
 				continue
-			plt.annotate(b_device_accuracies_across_rounds[accuracy_iter], xy=(accuracy_iter, b_device_accuracies_across_rounds[accuracy_iter]), size=12)
+			plt.annotate(b_device_accuracies_across_rounds[accuracy_iter], xy=(accuracy_iter, b_device_accuracies_across_rounds[accuracy_iter]), size=12)  # 打上准确率的注释
 
 if m_device_accuracies_across_rounds:
 	annotating_points = 5

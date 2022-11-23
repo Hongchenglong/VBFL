@@ -34,7 +34,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/plottings/f3_device_overall_learning_curve_VFL.py",
 			"console": "integratedTerminal",
-			"args": ["${workspaceFolder}/plotting_logs/VFL_nm0/run1"]
+			"args": ["${workspaceFolder}/WHDY_vanilla_malicious_involved_fedavg/logs/11232022_142338"]
 		},
 		{
 			"name": "f4_choice_of_vh.py",

@@ -22,7 +22,6 @@ class GetDataSet(object):
 		else:
 			pass
 
-
 	def mnistDataSetConstruct(self, isIID):
 		data_dir = 'data/MNIST'
 		train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')

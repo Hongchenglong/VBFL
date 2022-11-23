@@ -7,6 +7,15 @@ import copy
 from torch import optim
 import random
 
+"""单个客户端
+	恶意工作者给权重增加噪声
+	重置噪声的方差variance
+	模型本地更新
+	评估模型的准确率
+
+Returns:
+	_type_: _description_
+"""
 class client(object):
 	def __init__(self, idx, is_malicious, noise_variance, trainDataSet, assigned_test_dl, learning_rate, net, dev):
 		self.idx = idx
@@ -69,6 +78,9 @@ class client(object):
 			return sum_accu / num
 
 
+"""客户端群组
+	平均分配数据集
+"""
 class ClientsGroup(object):
 	def __init__(self, dataSetName, isIID, numOfClients, learning_rate, dev, net, num_malicious, noise_variance, shard_test_data):
 		self.data_set_name = dataSetName
