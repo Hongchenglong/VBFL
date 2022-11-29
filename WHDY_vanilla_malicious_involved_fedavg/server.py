@@ -13,7 +13,6 @@ import sys
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description="FedAvg")
 parser.add_argument('-g', '--gpu', type=str, default='0', help='gpu id to use(e.g. 0,1,2,3)')
 parser.add_argument('-nc', '--num_of_clients', type=int, default=20, help='numer of the clients')
-# TODO: C fraction
 parser.add_argument('-cf', '--cfraction', type=float, default=1, help='C fraction, 0 means 1 client, 1 means total clients')
 parser.add_argument('-E', '--epoch', type=int, default=5, help='local train epoch')
 parser.add_argument('-B', '--batchsize', type=int, default=10, help='local train batch size')
@@ -41,7 +40,7 @@ if __name__=="__main__":
 	log_files_folder_path = f"WHDY_vanilla_malicious_involved_fedavg/logs/{date_time}"
 	os.mkdir(log_files_folder_path)
 
-	# save arguments used 
+	# save arguments used
 	args = parser.parse_args()
 	args = args.__dict__
 	with open(f'{log_files_folder_path}/args_used.txt', 'w') as f:
@@ -50,7 +49,7 @@ if __name__=="__main__":
 		f.write("\n\nAll arguments used -\n")
 		for arg_name, arg in args.items():
 			f.write(f'\n--{arg_name} {arg}')
-		
+
 
 	# os.environ['CUDA_VISIBLE_clientS'] = args['gpu']
 	dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -101,6 +100,7 @@ if __name__=="__main__":
 		clients_list = list(myClients.clients_set.values())
 		print(''' Logging Accuracies by clients ''')
 		# open(f"{log_files_folder_path}/comm_{i+1}.txt", 'w').close()
+		# 用每轮得出的全局权重去评估各个客户端测试集的准确率
 		for client in clients_list:
 			accuracy_this_round = client.evaluate_model_weights(global_parameters)
 			with open(f"{comm_round_folder}/global_comm_{i+1}.txt", "a") as file:

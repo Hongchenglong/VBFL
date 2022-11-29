@@ -52,10 +52,13 @@ class client(object):
 				loss.backward()
 				self.opti.step()
 				self.opti.zero_grad()
+			# 在每轮训练后，记录是否恶意节点，以及本轮准确率
 			with open(f"{comm_round_folder}/{self.idx}_local_comm_{i+1}.txt", "a") as file:
 				is_malicious_node = "M" if self.is_malicious else "B"
 				accuracy_this_epoch = self.evaluate_model_weights(self.net.state_dict())
 				file.write(f"{self.idx} {is_malicious_node} epoch_{epoch+1}: {accuracy_this_epoch}\n")
+
+		# 如果是恶意节点，给权重加上噪声后，再重新评估模型准确率
 		if self.is_malicious:
 			self.net.apply(self.malicious_worker_add_noise_to_weights)
 			print(f"malicious client {self.idx} has added noise to its local updated weights before transmitting")
@@ -99,28 +102,35 @@ class ClientsGroup(object):
 		self.dataSetBalanceAllocation()
 
 	def dataSetBalanceAllocation(self):
+		"""
+		随机采样生成恶意节点，给客户端分配数据集
+		"""
 		mnist_dataset = GetDataSet(self.data_set_name, self.is_iid)
 
 		# perpare training data
+		# 准备训练数据
 		train_data = mnist_dataset.train_data
 		train_label = mnist_dataset.train_label
 		# shard dataset and distribute among clients
 		# shard train
-		shard_size_train = mnist_dataset.train_data_size // self.num_of_clients // 2
+		# 分片数据集
+		shard_size_train = mnist_dataset.train_data_size // self.num_of_clients // 2  # todo：为什么除以2
 		shards_id_train = np.random.permutation(mnist_dataset.train_data_size // shard_size_train)
 
 		# perpare test data
-		if not self.shard_test_data:
+		# 准备测试数据
+		if not self.shard_test_data:  # todo：如果不是分片测试数据，就... 不知道有啥区别
 			test_data = torch.tensor(mnist_dataset.test_data)
 			test_label = torch.argmax(torch.tensor(mnist_dataset.test_label), dim=1)
 			test_data_loader = DataLoader(TensorDataset(test_data, test_label), batch_size=100, shuffle=False)
 		else:
 			test_data = mnist_dataset.test_data
 			test_label = mnist_dataset.test_label
-			 # shard test
+			# shard test
 			shard_size_test = mnist_dataset.test_data_size // self.num_of_clients // 2
 			shards_id_test = np.random.permutation(mnist_dataset.test_data_size // shard_size_test)
-		
+
+		# 随机采样恶意节点
 		malicious_nodes_set = []
 		if self.num_malicious:
 			malicious_nodes_set = random.sample(range(self.num_of_clients), self.num_malicious)
@@ -152,8 +162,9 @@ class ClientsGroup(object):
 			if i in malicious_nodes_set:
 				is_malicious = True
 				# add Gussian Noise
-			client_idx = f'client_{i+1}'
 
+			# 实例化客户端
+			client_idx = f'client_{i+1}'
 			someone = client(client_idx, is_malicious, self.noise_variance, TensorDataset(torch.tensor(local_train_data), torch.tensor(local_train_label)), test_data_loader, self.learning_rate, self.net, self.dev)
 			self.clients_set[client_idx] = someone
 
