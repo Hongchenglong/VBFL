@@ -10,10 +10,12 @@ class Block:
 		self._transactions = transactions
 		self._nonce = nonce
 		# miner specific
+		# 矿工特有
 		self._miner_rsa_pub_key = miner_rsa_pub_key
 		self._mined_by = mined_by
 		self._mining_rewards = mining_rewards
 		# validator specific
+		# 验证者特有
 		# self._is_validator_block = is_validator_block
 		# the hash of the current block, calculated by compute_hash
 		self._pow_proof = pow_proof
@@ -43,16 +45,16 @@ class Block:
 		self._nonce += 1
 
 	# returners of the private attributes
-	
+
 	def return_previous_block_hash(self):
 		return self._previous_block_hash
 
 	def return_block_idx(self):
 		return self._idx
-	
+
 	def return_pow_proof(self):
 		return self._pow_proof
-	
+
 	def return_miner_rsa_pub_key(self):
 		return self._miner_rsa_pub_key
 
@@ -70,7 +72,7 @@ class Block:
 
 	def set_mined_by(self, mined_by):
 		self._mined_by = mined_by
-	
+
 	def return_mined_by(self):
 		return self._mined_by
 
@@ -86,7 +88,7 @@ class Block:
 
 	def return_mining_rewards(self):
 		return self._mining_rewards
-	
+
 	def return_transactions(self):
 		return self._transactions
 
@@ -98,4 +100,3 @@ class Block:
 			pass
 
 
-	

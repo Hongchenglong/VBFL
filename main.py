@@ -274,6 +274,7 @@ if __name__=="__main__":
 	)""")
 
 	# VBFL starts here
+	# VBFL 开始
 	for comm_round in range(latest_round_num + 1, args['max_num_comm']+1):
 		# create round specific log folder
 		log_files_folder_path_comm_round = f"{log_files_folder_path}/comm_{comm_round}"
@@ -314,6 +315,7 @@ if __name__=="__main__":
 			else:
 				validators_this_round.append(device)
 			# determine if online at the beginning (essential for step 1 when worker needs to associate with an online device)
+			# 在开始时确定是否在线（当工作人员需要与在线设备关联时，对于步骤 1 至关重要）
 			device.online_switcher()
 
 		''' DEBUGGING CODE '''
@@ -354,6 +356,7 @@ if __name__=="__main__":
 		''' DEBUGGING CODE ENDS '''
 
 		# re-init round vars - in real distributed system, they could still fall behind in comm round, but here we assume they will all go into the next round together, thought device may go offline somewhere in the previous round and their variables were not therefore reset
+		# 重新初始化 round变量 - 在真正的分布式系统中，它们仍然可能在通信轮中落后，但在这里我们假设它们将一起进入下一轮，认为设备可能会在上一轮的某个地方离线，因此它们的变量没有重置
 		for miner in miners_this_round:
 			miner.miner_reset_vars_for_new_round()
 		for worker in workers_this_round:
@@ -362,21 +365,27 @@ if __name__=="__main__":
 			validator.validator_reset_vars_for_new_round()
 
 		# DOESN'T MATTER ANY MORE AFTER TRACKING TIME, but let's keep it - orginal purpose: shuffle the list(for worker, this will affect the order of dataset portions to be trained)
+		# 跟踪时间后不再重要，但让我们保留它 - 原始目的：洗牌列表（对于worker来说，这将影响要训练的数据集部分的顺序）
 		random.shuffle(workers_this_round)
 		random.shuffle(miners_this_round)
 		random.shuffle(validators_this_round)
 		
 		''' workers, validators and miners take turns to perform jobs '''
+		''' 工人、验证者和矿工轮流执行工作 '''
 
 		print(''' Step 1 - workers assign associated miner and validator (and do local updates, but it is implemented in code block of step 2) \n''')
+		''' Step 1 - worker分配关联的miner和validator（并进行本地更新，但它是在step 2的代码块中实现的） \n'''
 		for worker_iter in range(len(workers_this_round)):
 			worker = workers_this_round[worker_iter]
 			# resync chain(block could be dropped due to fork from last round)
+			# 重新同步链（由于上一轮的分叉，块可能会被丢弃）
 			if worker.resync_chain(mining_consensus):
 				worker.update_model_after_chain_resync(log_files_folder_path_comm_round, conn, conn_cursor)
 			# worker (should) perform local update and associate
+			# worker 执行本地更新和关联
 			print(f"{worker.return_idx()} - worker {worker_iter+1}/{len(workers_this_round)} will associate with a validator and a miner, if online...")
 			# worker associates with a miner to accept finally mined block
+			# worker与miner关联接受最终开采的区块
 			if worker.online_switcher():
 				associated_miner = worker.associate_with_device("miner")
 				if associated_miner:
@@ -384,6 +393,7 @@ if __name__=="__main__":
 				else:
 					print(f"Cannot find a qualified miner in {worker.return_idx()} peer list.")
 			# worker associates with a validator to send worker transactions
+			# worker与validator关联发送worker的交易
 			if worker.online_switcher():
 				associated_validator = worker.associate_with_device("validator")
 				if associated_validator:
@@ -392,12 +402,15 @@ if __name__=="__main__":
 					print(f"Cannot find a qualified validator in {worker.return_idx()} peer list.")
 		
 		print(''' Step 2 - validators accept local updates and broadcast to other validators in their respective peer lists (workers local_updates() are called in this step.\n''')
+		''' Step 2 - validators接受本地更新和广播给其他同等节点列表中的validators（worker的local_updates()在这个步骤中被调用 '''
 		for validator_iter in range(len(validators_this_round)):
 			validator = validators_this_round[validator_iter]
 			# resync chain
+			# 重新同步链
 			if validator.resync_chain(mining_consensus):
 				validator.update_model_after_chain_resync(log_files_folder_path, conn, conn_cursor)
 			# associate with a miner to send post validation transactions
+			# 关联一个miner去发送校验交易
 			if validator.online_switcher():
 				associated_miner = validator.associate_with_device("miner")
 				if associated_miner:
@@ -405,6 +418,7 @@ if __name__=="__main__":
 				else:
 					print(f"Cannot find a qualified miner in validator {validator.return_idx()} peer list.")
 			# validator accepts local updates from its workers association
+			# validator从他关联的workers中接受local updates
 			associated_workers = list(validator.return_associated_workers())
 			if not associated_workers:
 				print(f"No workers are associated with validator {validator.return_idx()} {validator_iter+1}/{len(validators_this_round)} for this communication round.")
@@ -412,14 +426,17 @@ if __name__=="__main__":
 			validator_link_speed = validator.return_link_speed()
 			print(f"{validator.return_idx()} - validator {validator_iter+1}/{len(validators_this_round)} is accepting workers' updates with link speed {validator_link_speed} bytes/s, if online...")
 			# records_dict used to record transmission delay for each epoch to determine the next epoch updates arrival time
+			# records_dict 记录每个epoch的传输延迟，以确定下个epoch更新的到达啥见
 			records_dict = dict.fromkeys(associated_workers, None)
 			for worker, _ in records_dict.items():
 				records_dict[worker] = {}
 			# used for arrival time easy sorting for later validator broadcasting (and miners' acception order)
+			# 被用于到达时间便于下个validator广播（和miner的接受顺序）排序
 			transaction_arrival_queue = {}
 			# workers local_updates() called here as their updates transmission may be restrained by miners' acception time and/or size
+			# workers的local_updates()在这被调用，因为他们的更新传输可能被miner的接受时间和/或大小所限制
 			if args['miner_acception_wait_time']:
-				print(f"miner wati time is specified as {args['miner_acception_wait_time']} seconds. let each worker do local_updates till time limit")
+				print(f"miner wait time is specified as {args['miner_acception_wait_time']} seconds. let each worker do local_updates till time limit")
 				for worker_iter in range(len(associated_workers)):
 					worker = associated_workers[worker_iter]
 					if not worker.return_idx() in validator.return_black_list():
@@ -473,7 +490,8 @@ if __name__=="__main__":
 									total_time_tracker = total_time_tracker - records_dict[worker][update_iter - 1]['transmission_delay'] + wasted_update_time + wasted_transmission_delay
 							update_iter += 1
 			else:
-				 # did not specify wait time. every associated worker perform specified number of local epochs
+				# did not specify wait time. every associated worker perform specified number of local epochs
+				# 不指定wait time，每个关联的worker执行指定数量的epochs
 				for worker_iter in range(len(associated_workers)):
 					worker = associated_workers[worker_iter]
 					if not worker.return_idx() in validator.return_black_list():
@@ -495,17 +513,19 @@ if __name__=="__main__":
 					else:
 						print(f"worker {worker.return_idx()} in validator {validator.return_idx()}'s black list. This worker's transactions won't be accpeted.")
 			validator.set_unordered_arrival_time_accepted_worker_transactions(transaction_arrival_queue)
-			# in case validator off line for accepting broadcasted transactions but can later back online to validate the transactions itself receives
+			# in case validator off-line for accepting broadcasted transactions but can later back online to validate the transactions itself receives
+			# 如果validator离线接受广播交易，但是可以稍后上线验证本身接收的交易
 			validator.set_transaction_for_final_validating_queue(sorted(transaction_arrival_queue.items()))
 			
 			# broadcast to other validators
+			# 广播给其他validators
 			if transaction_arrival_queue:
 				validator.validator_broadcast_worker_transactions()
 			else:
 				print("No transactions have been received by this validator, probably due to workers and/or validators offline or timeout while doing local updates or transmitting updates, or all workers are in validator's black list.")
 
-
 		print(''' Step 2.5 - with the broadcasted workers transactions, validators decide the final transaction arrival order \n''')
+		''' Step 2.5 - 通过广播的worker交易，validators 决定最终的交易到达顺序 '''
 		for validator_iter in range(len(validators_this_round)):
 			validator = validators_this_round[validator_iter]
 			accepted_broadcasted_validator_transactions = validator.return_accepted_broadcasted_worker_transactions()
@@ -513,6 +533,7 @@ if __name__=="__main__":
 			accepted_broadcasted_transactions_arrival_queue = {}
 			if accepted_broadcasted_validator_transactions:
 				# calculate broadcasted transactions arrival time
+				# 计算广播交易的到达时间
 				self_validator_link_speed = validator.return_link_speed()
 				for broadcasting_validator_record in accepted_broadcasted_validator_transactions:
 					broadcasting_validator_link_speed = broadcasting_validator_record['source_validator_link_speed']
@@ -523,22 +544,25 @@ if __name__=="__main__":
 			else:
 				print(f"validator {validator.return_idx()} {validator_iter+1}/{len(validators_this_round)} did not receive any broadcasted worker transaction this round.")
 			# mix the boardcasted transactions with the direct accepted transactions
+			# 将广播交易和直接接受的交易混合
 			final_transactions_arrival_queue = sorted({**validator.return_unordered_arrival_time_accepted_worker_transactions(), **accepted_broadcasted_transactions_arrival_queue}.items())
 			validator.set_transaction_for_final_validating_queue(final_transactions_arrival_queue)
 			print(f"{validator.return_idx()} - validator {validator_iter+1}/{len(validators_this_round)} done calculating the ordered final transactions arrival order. Total {len(final_transactions_arrival_queue)} accepted transactions.")
 
-
 		print(''' Step 3 - validators do self and cross-validation(validate local updates from workers) by the order of transaction arrival time.\n''')
+		''' validators按交易到达时间的顺序进行自我和交叉验证（验证来自workers的本地更新）。 '''
 		for validator_iter in range(len(validators_this_round)):
 			validator = validators_this_round[validator_iter]
 			final_transactions_arrival_queue = validator.return_final_transactions_validating_queue()
 			if final_transactions_arrival_queue:
 				# validator asynchronously does one epoch of update and validate on its own test set
+				# validator异步进行一个周期的更新，并在测试集上校验
 				local_validation_time = validator.validator_update_model_by_one_epoch_and_validate_local_accuracy(args['optimizer'])
 				print(f"{validator.return_idx()} - validator {validator_iter+1}/{len(validators_this_round)} is validating received worker transactions...")
 				for (arrival_time, unconfirmmed_transaction) in final_transactions_arrival_queue:
 					if validator.online_switcher():
 						# validation won't begin until validator locally done one epoch of update and validation(worker transactions will be queued)
+						# 验证不会开始，直到validator完成一个epoch的更新和校验（worker交易将会排队）
 						if arrival_time < local_validation_time:
 							arrival_time = local_validation_time
 						validation_time, post_validation_unconfirmmed_transaction = validator.validate_worker_transaction(unconfirmmed_transaction, rewards, log_files_folder_path, comm_round, args['malicious_validator_on'])
@@ -551,6 +575,7 @@ if __name__=="__main__":
 				print(f"{validator.return_idx()} - validator {validator_iter+1}/{len(validators_this_round)} did not receive any transaction from worker or validator in this round.")
 
 		print(''' Step 4 - validators send post validation transactions to associated miner and miner broadcasts these to other miners in their respecitve peer lists\n''')
+		''' Step 4 - validators发送验证后交易给相关联的miner，并且miner广播这些交易给他同等节点的miner '''
 		for miner_iter in range(len(miners_this_round)):
 			miner = miners_this_round[miner_iter]
 			# resync chain
@@ -581,6 +606,7 @@ if __name__=="__main__":
 			miner.miner_broadcast_validator_transactions()
 
 		print(''' Step 4.5 - with the broadcasted validator transactions, miners decide the final transaction arrival order\n ''')
+		''' Step 4.5 - 随着广播validator交易，miners决定最终的到达顺序 '''
 		for miner_iter in range(len(miners_this_round)):
 			miner = miners_this_round[miner_iter]
 			accepted_broadcasted_validator_transactions = miner.return_accepted_broadcasted_validator_transactions()
@@ -603,6 +629,7 @@ if __name__=="__main__":
 			print(f"{miner.return_idx()} - miner {miner_iter+1}/{len(miners_this_round)} done calculating the ordered final transactions arrival order. Total {len(final_transactions_arrival_queue)} accepted transactions.")
 		
 		print(''' Step 5 - miners do self and cross-verification (verify validators' signature) by the order of transaction arrival time and record the transactions in the candidate block according to the limit size. Also mine and propagate the block.\n''')
+		''' miners按照交易到达时间的顺序进行自我和交叉验证（验证validator的签名），并根据限制大小将交易记录在候选区块中，还挖掘并传播块。 '''
 		for miner_iter in range(len(miners_this_round)):
 			miner = miners_this_round[miner_iter]
 			final_transactions_arrival_queue = miner.return_final_candidate_transactions_mining_queue()
@@ -717,6 +744,7 @@ if __name__=="__main__":
 				print(f"{miner.return_idx()} - miner {miner_iter+1}/{len(miners_this_round)} did not receive any transaction from validator or miner in this round.")
 
 		print(''' Step 6 - miners decide if adding a propagated block or its own mined block as the legitimate block, and request its associated devices to download this block''')
+		''' miner决定是否添加传播区块或其自己的开采区块作为合法区块，并要求其相关设备下载此区块 '''
 		forking_happened = False
 		# comm_round_block_gen_time regarded as the time point when the winning miner mines its block, calculated from the beginning of the round. If there is forking in PoW or rewards info out of sync in PoS, this time is the avg time point of all the appended time by any device
 		comm_round_block_gen_time = []
