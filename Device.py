@@ -1,3 +1,5 @@
+import hashlib
+
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset
@@ -346,6 +348,116 @@ class Device:  # 对标client
 		print("Chain not resynced.")
 		return False
 
+	def fpos_resync_chain(self):
+		print(
+			f"{self.role} {self.idx} is looking for a chain with the highest accumulated miner's stake and fairness factor in the network...")
+		highest_score_chain = None
+		updated_from_peer = None
+		curr_chain_score = self.accumulate_chain_score(self.return_blockchain_object())
+
+		for peer in self.peer_list:
+			if peer.is_online():
+				peer_chain = peer.return_blockchain_object()
+				peer_chain_score = self.accumulate_chain_score(peer_chain)
+
+				if peer_chain_score > curr_chain_score:
+					if self.check_chain_validity(peer_chain):
+						print(
+							f"A chain from {peer.return_idx()} with total score {peer_chain_score} has been found (> currently compared chain score {curr_chain_score}) and verified.")
+						# Higher score valid chain found!
+						curr_chain_score = peer_chain_score
+						highest_score_chain = peer_chain
+						updated_from_peer = peer.return_idx()
+					else:
+						print(
+							f"A chain from {peer.return_idx()} with higher score has been found BUT NOT verified. Skipped this chain for syncing.")
+
+		if highest_score_chain:
+			# compare chain difference
+			highest_score_chain_structure = highest_score_chain.return_chain_structure()
+			# need more efficient mechanism which is to reverse updates by # of blocks
+			self.return_blockchain_object().replace_chain(highest_score_chain_structure)
+			print(f"{self.idx} chain resynced from peer {updated_from_peer}.")
+			# return block_iter
+			return True
+		print("Chain not resynced.")
+		return False
+
+	def accumulate_chain_score(self, chain):
+		total_stake = self.accumulate_chain_stake(chain)
+		fairness_value = self.calculate_fairness(chain)
+		return total_stake * fairness_value
+
+	def calculate_fairness(self, chain):
+		# 使用最后一个区块的哈希值计算公平值
+		last_block = chain.get_last_block()
+		block_hash = last_block.hash
+
+		# 将哈希值转换为整数并归一化到 0-1 范围内
+		fairness_value = int(hashlib.sha256(block_hash.encode('utf-8')).hexdigest(), 16) % 1000000 / 1000000
+
+		return fairness_value
+
+	def bft_pos_resync_chain(self):
+		# 打印开始同步的消息
+		print(f"{self.role} {self.idx} is looking for a chain with the highest accumulated miner's stake in the network...")
+
+		# 初始化最高权益链和更新节点
+		highest_stake_chain = None
+		updated_from_peer = None
+
+		# 获取当前节点链的累积权益
+		curr_chain_stake = self.accumulate_chain_stake(self.return_blockchain_object())
+
+		# 创建一个字典来存储每个对等节点的票数
+		peer_votes = {}
+
+		# 遍历当前节点的所有对等节点
+		for peer in self.peer_list:
+			# 判断对等节点是否在线
+			if peer.is_online():
+				# 获取对等节点的区块链对象
+				peer_chain = peer.return_blockchain_object()
+
+				# 计算对等节点链的累积权益
+				peer_chain_stake = self.accumulate_chain_stake(peer_chain)
+
+				# 判断对等节点的链累积权益是否大于当前节点的链累积权益
+				if peer_chain_stake > curr_chain_stake:
+					# 如果对等节点的链合法，为该对等节点投票
+					if self.check_chain_validity(peer_chain):
+						if peer.return_idx() in peer_votes:
+							peer_votes[peer.return_idx()] += 1
+						else:
+							peer_votes[peer.return_idx()] = 1
+
+		# 确定获得最高票数的对等节点
+		max_votes_peer = max(peer_votes, key=peer_votes.get)
+
+		# 检查是否满足共识阈值（例如，大于2/3的节点同意）
+		if peer_votes[max_votes_peer] > (len(self.peer_list) * 2 / 3):
+			# 获取获得最高票数的对等节点的链
+			highest_stake_chain = self.peer_list[max_votes_peer].return_blockchain_object()
+
+			# 获取最高权益链的结构
+			highest_stake_chain_structure = highest_stake_chain.return_chain_structure()
+
+			# 用最高权益链的结构替换当前节点的链
+			self.return_blockchain_object().replace_chain(highest_stake_chain_structure)
+
+			# 打印链已同步的消息
+			print(f"{self.idx} chain resynced from peer {max_votes_peer}.")
+
+			# 返回True表示链已同步
+			return True
+		else:
+			# 如果没有达到共识阈值，打印链未同步的消息
+			print("Chain not resynced.")
+
+			# 返回False表示链未同步
+			return False
+
+	# 在区块链网络中查找最长的合法链，并将当前节点的链与之同步。如果同步成功，函数返回True；否则返回False。
 	def pow_resync_chain(self):
 		print(f"{self.role} {self.idx} is looking for a longer chain in the network...")
 		longest_chain = None

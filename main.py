@@ -34,13 +34,14 @@ from pathlib import Path
 import shutil
 import torch
 import torch.nn.functional as F
-from Models import Mnist_2NN, Mnist_CNN
-from Device import Device, DevicesInNetwork
+from Models import Mnist_2NN, Mnist_CNN, Mnist_BCNN
+from Device import DevicesInNetwork
 from Block import Block
 from Blockchain import Blockchain
 
 # set program execution time for logging purpose
-date_time = datetime.now().strftime("%m%d%Y_%H%M%S")
+
+date_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_files_folder_path = f"logs/{date_time}"
 NETWORK_SNAPSHOTS_BASE_FOLDER = "snapshots"
 # for running on Google Colab
@@ -60,14 +61,14 @@ parser.add_argument('-sm', '--save_most_recent', type=int, default=2, help='in c
 
 # FL attributes
 parser.add_argument('-B', '--batchsize', type=int, default=10, help='local train batch size')
-parser.add_argument('-mn', '--model_name', type=str, default='mnist_cnn', help='the model to train')
+parser.add_argument('-mn', '--model_name', type=str, default='mnist_bcnn', help='the model to train')
 parser.add_argument('-lr', "--learning_rate", type=float, default=0.01, help="learning rate, use value from origin paper as default")
 parser.add_argument('-op', '--optimizer', type=str, default="SGD", help='optimizer to be used, by default implementing stochastic gradient descent')
 parser.add_argument('-iid', '--IID', type=int, default=0, help='the way to allocate data to devices')
-parser.add_argument('-max_ncomm', '--max_num_comm', type=int, default=100, help='maximum number of communication rounds, may terminate early if converges')
+parser.add_argument('-max_ncomm', '--max_num_comm', type=int, default=10, help='maximum number of communication rounds, may terminate early if converges')
 parser.add_argument('-nd', '--num_devices', type=int, default=20, help='numer of the devices in the simulation network')
 parser.add_argument('-st', '--shard_test_data', type=int, default=0, help='it is easy to see the global models are consistent across devices when the test dataset is NOT sharded')
-parser.add_argument('-nm', '--num_malicious', type=int, default=0, help="number of malicious nodes in the network. malicious node's data sets will be introduced Gaussian noise")
+parser.add_argument('-nm', '--num_malicious', type=int, default=3, help="number of malicious nodes in the network. malicious node's data sets will be introduced Gaussian noise")
 parser.add_argument('-nv', '--noise_variance', type=int, default=1, help="noise variance level of the injected Gaussian Noise")
 parser.add_argument('-le', '--default_local_epochs', type=int, default=5, help='local train epoch. Train local model by this same num of epochs for each worker, if -mt is not specified')
 
@@ -126,7 +127,7 @@ if __name__=="__main__":
 		latest_round_num = int(latest_network_snapshot_file_name.split('_')[-1])
 		devices_in_network = pickle.load(open(f"{network_snapshot_save_path}/{latest_network_snapshot_file_name}", "rb"))
 		devices_list = list(devices_in_network.devices_set.values())
-		log_files_folder_path = f"logs/{args['resume_path']}"
+		log_files_folder_path = f"logs/{args['resume_path']}_{args['model_name']}"
 		# for colab
 		# log_files_folder_path = f"/content/drive/MyDrive/BFA/logs/{args['resume_path']}"
 		# original arguments file
@@ -136,15 +137,19 @@ if __name__=="__main__":
 		lines_list = log_whole_text.split("\n")
 		for line in lines_list:
 			# abide by the original specified rewards
+			# 遵守最初规定的奖励
 			if line.startswith('--unit_reward'):
 				rewards = int(line.split(" ")[-1])
 			# get number of roles
+			# 获取角色的数量
 			if line.startswith('--hard_assign'):
 				roles_requirement = line.split(" ")[-1].split(',')
 			# get mining consensus
+			# 获取挖矿共识
 			if line.startswith('--pow_difficulty'):
 				mining_consensus = 'PoW' if int(line.split(" ")[-1]) else 'PoS'
 		# determine roles to assign
+		# 确定要分配的角色
 		try:
 			workers_needed = int(roles_requirement[0])
 		except:
@@ -159,7 +164,8 @@ if __name__=="__main__":
 			miners_needed = 1
 	else:
 		''' SETTING UP FROM SCRATCH'''
-		
+		''' 从头开始设置'''
+
 		# 0. create log_files_folder_path if not resume
 		os.mkdir(log_files_folder_path)
 
@@ -178,6 +184,7 @@ if __name__=="__main__":
 
 		# 3. assign system variables
 		# for demonstration purposes, this reward is for every rewarded action
+		# 为了演示目的，此奖励是每个奖励的行动
 		rewards = args["unit_reward"]
 		
 		# 4. get number of roles needed in the network
@@ -197,7 +204,7 @@ if __name__=="__main__":
 			miners_needed = 1
 
 		# 5. check arguments eligibility
-
+		# 5.检查参数合格性
 		num_devices = args['num_devices']
 		num_malicious = args['num_malicious']
 		
@@ -207,7 +214,6 @@ if __name__=="__main__":
 		if num_devices < 3:
 			sys.exit("ERROR: There are not enough devices in the network.\n The system needs at least one miner, one worker and/or one validator to start the operation.\nSystem aborted.")
 
-		
 		if num_malicious:
 			if num_malicious > num_devices:
 				sys.exit("ERROR: The number of malicious nodes cannot exceed the total number of devices set in this network")
@@ -220,6 +226,8 @@ if __name__=="__main__":
 			net = Mnist_2NN()
 		elif args['model_name'] == 'mnist_cnn':
 			net = Mnist_CNN()
+		elif args['model_name'] == 'mnist_bcnn':
+			net = Mnist_BCNN()
 
 		# 7. assign GPU(s) if available to the net, otherwise CPU
 		# os.environ['CUDA_VISIBLE_DEVICES'] = args['gpu']
@@ -232,17 +240,19 @@ if __name__=="__main__":
 		loss_func = F.cross_entropy
 
 		# 9. create devices in the network
-		devices_in_network = DevicesInNetwork(data_set_name='mnist', is_iid=args['IID'], batch_size = args['batchsize'], learning_rate =  args['learning_rate'], loss_func = loss_func, opti = args['optimizer'], num_devices=num_devices, network_stability=args['network_stability'], net=net, dev=dev, knock_out_rounds=args['knock_out_rounds'], lazy_worker_knock_out_rounds=args['lazy_worker_knock_out_rounds'], shard_test_data=args['shard_test_data'], miner_acception_wait_time=args['miner_acception_wait_time'], miner_accepted_transactions_size_limit=args['miner_accepted_transactions_size_limit'], validator_threshold=args['validator_threshold'], pow_difficulty=args['pow_difficulty'], even_link_speed_strength=args['even_link_speed_strength'], base_data_transmission_speed=args['base_data_transmission_speed'], even_computation_power=args['even_computation_power'], malicious_updates_discount=args['malicious_updates_discount'], num_malicious=num_malicious, noise_variance=args['noise_variance'], check_signature=args['check_signature'], not_resync_chain=args['destroy_tx_in_block'])
-		del net
+		devices_in_network = DevicesInNetwork(data_set_name='mnist', is_iid=args['IID'], batch_size=args['batchsize'], learning_rate=args['learning_rate'], loss_func=loss_func, opti=args['optimizer'], num_devices=num_devices, network_stability=args['network_stability'], net=net, dev=dev, knock_out_rounds=args['knock_out_rounds'], lazy_worker_knock_out_rounds=args['lazy_worker_knock_out_rounds'], shard_test_data=args['shard_test_data'], miner_acception_wait_time=args['miner_acception_wait_time'], miner_accepted_transactions_size_limit=args['miner_accepted_transactions_size_limit'], validator_threshold=args['validator_threshold'], pow_difficulty=args['pow_difficulty'], even_link_speed_strength=args['even_link_speed_strength'], base_data_transmission_speed=args['base_data_transmission_speed'], even_computation_power=args['even_computation_power'], malicious_updates_discount=args['malicious_updates_discount'], num_malicious=num_malicious, noise_variance=args['noise_variance'], check_signature=args['check_signature'], not_resync_chain=args['destroy_tx_in_block'])
 		devices_list = list(devices_in_network.devices_set.values())
+		del net
 
-		# 10. register devices and initialize global parameterms
+		# 10. register devices and initialize global parameters
 		for device in devices_list:
 			# set initial global weights
 			device.init_global_parameters()
 			# helper function for registration simulation - set devices_list and aio
+			# 注册模拟的助手函数 - set devices_list和aio
 			device.set_devices_dict_and_aio(devices_in_network.devices_set, args["all_in_one"])
 			# simulate peer registration, with respect to device idx order
+			# 根据设备idx顺序模拟对等注册
 			device.register_in_the_network()
 		# remove its own from peer list if there is
 		for device in devices_list:
@@ -250,19 +260,20 @@ if __name__=="__main__":
 
 		# 11. build logging files/database path
 		# create log files
-		open(f"{log_files_folder_path}/correctly_kicked_workers.txt", 'w').close()
-		open(f"{log_files_folder_path}/mistakenly_kicked_workers.txt", 'w').close()
-		open(f"{log_files_folder_path}/false_positive_malious_nodes_inside_slipped.txt", 'w').close()
+		open(f"{log_files_folder_path}/correctly_kicked_workers.txt", 'w').close()  # 正确踢走的工人
+		open(f"{log_files_folder_path}/mistakenly_kicked_workers.txt", 'w').close()  # 误踢的工人👷
+		open(f"{log_files_folder_path}/false_positive_malicious_nodes_inside_slipped.txt", 'w').close()
 		open(f"{log_files_folder_path}/false_negative_good_nodes_inside_victims.txt", 'w').close()
 		# open(f"{log_files_folder_path}/correctly_kicked_validators.txt", 'w').close()
 		# open(f"{log_files_folder_path}/mistakenly_kicked_validators.txt", 'w').close()
-		open(f"{log_files_folder_path}/kicked_lazy_workers.txt", 'w').close()
+		open(f"{log_files_folder_path}/kicked_lazy_workers.txt", 'w').close()  # 被踢的懒惰的工人
 
 		# 12. setup the mining consensus
 		mining_consensus = 'PoW' if args['pow_difficulty'] else 'PoS'
 
 	# create malicious worker identification database
-	conn = sqlite3.connect(f'{log_files_folder_path}/malicious_wokrer_identifying_log.db')
+	# 创建恶意工人识别数据库
+	conn = sqlite3.connect(f'{log_files_folder_path}/malicious_worker_identifying_log.db')
 	conn_cursor = conn.cursor()
 	conn_cursor.execute("""CREATE TABLE if not exists  malicious_workers_log (
 	device_seq text,

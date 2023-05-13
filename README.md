@@ -104,4 +104,20 @@ Please raise other issues and concerns you found. Thank you!
 (2)The code of FedAvg used in VBFL is inspired by [*WHDY's FedAvg implementation*](https://github.com/WHDY/FedAvg).
 
 ## 存在问题
-f3_device_overall_learning_curve_VFL.py, crop_white_on_plots.py运行失败
+f3_device_overall_learning_curve_VFL.py（原因，没有对应的日志）, crop_white_on_plots.py运行失败
+
+## 改进点
+换数据集、模型bnn（慢死了）、fedavg算法、共识算法、用flower框架的fl
+
+https://github.com/innovation-cat/Awesome-Federated-Machine-Learning，找一篇与区块链结合
+
+## 代码顺序
+1. 区块链
+2. fedavg联邦学习
+    model -> getData -> clients -> server
+3. 加入恶意节点的fedavg联邦学习
+    block -> blockChain -> model -> datasetLoad -> Device -> main
+
+
+nm=0时准确率一般高于50%，nm=3时准确率低于50%
+20个节点训练epoch次，训练完后聚集成一个模型，为通信一次
