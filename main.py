@@ -50,6 +50,11 @@ NETWORK_SNAPSHOTS_BASE_FOLDER = "snapshots"
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description="Block_FedAvg_Simulation")
 
+'''	
+python main.py -nd 20 -mn mnist_cnn -iid 0 -max_ncomm 100 -nm 3 
+python main.py -nd 20 -mn mnist_bcnn -iid 0 -max_ncomm 100 -nm 3 
+'''
+
 # debug attributes
 parser.add_argument('-g', '--gpu', type=str, default='0', help='gpu id to use(e.g. 0,1,2,3)')
 parser.add_argument('-v', '--verbose', type=int, default=1, help='print verbose debug log')
